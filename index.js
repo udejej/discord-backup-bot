@@ -6,7 +6,8 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildEmojisAndStickers
+        GatewayIntentBits.GuildEmojisAndStickers,
+        GatewayIntentBits.MessageContent
     ]
 });
 
@@ -30,7 +31,12 @@ const commands = [
 
 client.once('ready', async () => {
     console.log(`Bot connecté: ${client.user.tag}`);
-    await client.application.commands.set(commands);
+    try {
+        await client.application.commands.set(commands);
+        console.log('Commandes slash enregistrées avec succès');
+    } catch (error) {
+        console.error('Erreur lors de l\'enregistrement des commandes:', error);
+    }
 });
 
 client.on('interactionCreate', async interaction => {
@@ -44,7 +50,11 @@ client.on('interactionCreate', async interaction => {
 
         const userClient = new Client({
             checkUpdate: false,
-            intents: [GatewayIntentBits.Guilds],
+            intents: [
+                GatewayIntentBits.Guilds,
+                GatewayIntentBits.GuildMembers,
+                GatewayIntentBits.GuildEmojisAndStickers
+            ],
             rest: {
                 api: "https://discord.com/api/v10",
                 version: "10",
@@ -57,10 +67,14 @@ client.on('interactionCreate', async interaction => {
         });
 
         try {
-            await userClient.login(userToken);
+            await userClient.login(userToken, { type: "user" });
             
             const sourceGuild = await userClient.guilds.fetch(sourceGuildId);
             const destGuild = await userClient.guilds.fetch(destGuildId);
+
+            if (!sourceGuild || !destGuild) {
+                throw new Error('Un des serveurs n\'a pas été trouvé');
+            }
 
             await interaction.editReply('✅ Connexion établie, début de la backup...');
 
@@ -78,12 +92,12 @@ client.on('interactionCreate', async interaction => {
                     });
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 } catch (e) {
-                    console.log(`Rôle ${role.name} ignoré`);
+                    console.log(`Rôle ${role.name} ignoré:`, e.message);
                 }
             }
             await interaction.followUp({ content: '✅ Rôles copiés', ephemeral: true });
 
-            // Backup des catégories
+            // Backup des catégories et canaux
             const categories = sourceGuild.channels.cache.filter(c => c.type === 4);
             for (const [_, category] of categories) {
                 try {
@@ -110,7 +124,7 @@ client.on('interactionCreate', async interaction => {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                 } catch (e) {
-                    console.log(`Catégorie ${category.name} ignorée`);
+                    console.log(`Catégorie ${category.name} ignorée:`, e.message);
                 }
             }
             await interaction.followUp({ content: '✅ Canaux copiés', ephemeral: true });
@@ -125,16 +139,16 @@ client.on('interactionCreate', async interaction => {
                     });
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 } catch (e) {
-                    console.log(`Emoji ${emoji.name} ignoré`);
+                    console.log(`Emoji ${emoji.name} ignoré:`, e.message);
                 }
             }
             await interaction.followUp({ content: '✅ Émojis copiés', ephemeral: true });
             await interaction.followUp({ content: '✅ Backup terminée avec succès!', ephemeral: true });
 
         } catch (error) {
-            console.log('Erreur:', error);
+            console.error('Erreur détaillée:', error);
             await interaction.followUp({ 
-                content: `❌ Erreur lors de la backup. Vérifiez le token et les permissions.`, 
+                content: `❌ Erreur lors de la backup: ${error.message}`, 
                 ephemeral: true 
             });
         } finally {
