@@ -13,7 +13,7 @@ const client = new Client({
 
 const commands = [
     new SlashCommandBuilder()
-        .setName('backup')
+        .setName('cloner')
         .setDescription('Créer une backup d\'un serveur')
         .addStringOption(option =>
             option.setName('source_guild_id')
