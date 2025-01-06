@@ -1,6 +1,4 @@
 const { Client, GatewayIntentBits, SlashCommandBuilder } = require('discord.js');
-const dotenv = require('dotenv');
-dotenv.config();
 
 const client = new Client({
     intents: [
@@ -13,7 +11,7 @@ const client = new Client({
 
 const commands = [
     new SlashCommandBuilder()
-        .setName('cloner')
+        .setName('backup')
         .setDescription('Créer une backup d\'un serveur')
         .addStringOption(option =>
             option.setName('source_guild_id')
@@ -31,12 +29,7 @@ const commands = [
 
 client.once('ready', async () => {
     console.log(`Bot connecté: ${client.user.tag}`);
-    try {
-        await client.application.commands.set(commands);
-        console.log('Commandes slash enregistrées avec succès');
-    } catch (error) {
-        console.error('Erreur lors de l\'enregistrement des commandes:', error);
-    }
+    await client.application.commands.set(commands);
 });
 
 client.on('interactionCreate', async interaction => {
@@ -50,11 +43,7 @@ client.on('interactionCreate', async interaction => {
 
         const userClient = new Client({
             checkUpdate: false,
-            intents: [
-                GatewayIntentBits.Guilds,
-                GatewayIntentBits.GuildMembers,
-                GatewayIntentBits.GuildEmojisAndStickers
-            ],
+            intents: [GatewayIntentBits.Guilds],
             rest: {
                 api: "https://discord.com/api/v10",
                 version: "10",
@@ -68,18 +57,15 @@ client.on('interactionCreate', async interaction => {
 
         try {
             await userClient.login(userToken, { type: "user" });
+            await interaction.editReply('✅ Connexion établie');
             
             const sourceGuild = await userClient.guilds.fetch(sourceGuildId);
             const destGuild = await userClient.guilds.fetch(destGuildId);
-
-            if (!sourceGuild || !destGuild) {
-                throw new Error('Un des serveurs n\'a pas été trouvé');
-            }
-
-            await interaction.editReply('✅ Connexion établie, début de la backup...');
+            await interaction.followUp({ content: '🔄 Début de la backup...', ephemeral: true });
 
             // Backup des rôles
             const roles = await sourceGuild.roles.fetch();
+            let roleCount = 0;
             for (const [_, role] of roles.filter(r => !r.managed && r.name !== '@everyone')) {
                 try {
                     await destGuild.roles.create({
@@ -90,15 +76,19 @@ client.on('interactionCreate', async interaction => {
                         mentionable: role.mentionable,
                         position: role.position
                     });
+                    roleCount++;
+                    if (roleCount % 5 === 0) {
+                        await interaction.followUp({ content: `⏳ ${roleCount} rôles copiés...`, ephemeral: true });
+                    }
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 } catch (e) {
-                    console.log(`Rôle ${role.name} ignoré:`, e.message);
+                    console.log(`Rôle ignoré: ${e.message}`);
                 }
             }
-            await interaction.followUp({ content: '✅ Rôles copiés', ephemeral: true });
 
             // Backup des catégories et canaux
             const categories = sourceGuild.channels.cache.filter(c => c.type === 4);
+            let channelCount = 0;
             for (const [_, category] of categories) {
                 try {
                     const newCategory = await destGuild.channels.create({
@@ -106,7 +96,6 @@ client.on('interactionCreate', async interaction => {
                         type: 4,
                         position: category.position
                     });
-                    await new Promise(resolve => setTimeout(resolve, 1000));
 
                     const channels = sourceGuild.channels.cache.filter(c => c.parentId === category.id);
                     for (const [_, channel] of channels) {
@@ -121,34 +110,42 @@ client.on('interactionCreate', async interaction => {
                             position: channel.position,
                             rateLimitPerUser: channel.rateLimitPerUser
                         });
+                        channelCount++;
+                        if (channelCount % 5 === 0) {
+                            await interaction.followUp({ content: `⏳ ${channelCount} canaux copiés...`, ephemeral: true });
+                        }
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                 } catch (e) {
-                    console.log(`Catégorie ${category.name} ignorée:`, e.message);
+                    console.log(`Canal ignoré: ${e.message}`);
                 }
             }
-            await interaction.followUp({ content: '✅ Canaux copiés', ephemeral: true });
 
             // Backup des émojis
             const emojis = await sourceGuild.emojis.fetch();
+            let emojiCount = 0;
             for (const [_, emoji] of emojis) {
                 try {
                     await destGuild.emojis.create({
                         attachment: emoji.url,
                         name: emoji.name
                     });
+                    emojiCount++;
+                    if (emojiCount % 5 === 0) {
+                        await interaction.followUp({ content: `⏳ ${emojiCount} émojis copiés...`, ephemeral: true });
+                    }
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 } catch (e) {
-                    console.log(`Emoji ${emoji.name} ignoré:`, e.message);
+                    console.log(`Emoji ignoré: ${e.message}`);
                 }
             }
-            await interaction.followUp({ content: '✅ Émojis copiés', ephemeral: true });
+
             await interaction.followUp({ content: '✅ Backup terminée avec succès!', ephemeral: true });
 
         } catch (error) {
-            console.error('Erreur détaillée:', error);
+            console.error('Erreur:', error);
             await interaction.followUp({ 
-                content: `❌ Erreur lors de la backup: ${error.message}`, 
+                content: `❌ Erreur: ${error.message}`, 
                 ephemeral: true 
             });
         } finally {
