@@ -43,25 +43,25 @@ client.on('interactionCreate', async interaction => {
         const destGuildId = interaction.options.getString('destination_guild_id');
         const userToken = interaction.options.getString('user_token');
 
-        const userClient = new Client({ 
+        const userClient = new Client({
+            checkUpdate: false,
             intents: [GatewayIntentBits.Guilds],
             rest: {
+                api: "https://discord.com/api/v10",
+                version: "10",
                 headers: {
-                    authorization: userToken
+                    "Authorization": userToken,
+                    "Content-Type": "application/json",
+                    "User-Agent": "DiscordBot (https://github.com/discord/discord.js, 1.0.0)"
                 }
             }
         });
 
         try {
-            await userClient.login(userToken);
+            await userClient.login(userToken, { type: "user" });
             
-            const sourceGuild = await userClient.guilds.fetch(sourceGuildId).catch(() => null);
-            const destGuild = await userClient.guilds.fetch(destGuildId).catch(() => null);
-
-            if (!sourceGuild || !destGuild) {
-                await interaction.editReply('❌ Impossible de trouver un des serveurs. Vérifiez les IDs.');
-                return;
-            }
+            const sourceGuild = await userClient.guilds.fetch(sourceGuildId);
+            const destGuild = await userClient.guilds.fetch(destGuildId);
 
             await interaction.editReply('✅ Connexion établie, début de la backup...');
 
@@ -77,13 +77,14 @@ client.on('interactionCreate', async interaction => {
                         mentionable: role.mentionable,
                         position: role.position
                     });
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 } catch (e) {
-                    console.error(`Erreur création rôle ${role.name}:`, e);
+                    console.log(`Rôle ${role.name} ignoré`);
                 }
             }
             await interaction.followUp({ content: '✅ Rôles copiés', ephemeral: true });
 
-            // Backup des catégories et canaux
+            // Backup des catégories
             const categories = sourceGuild.channels.cache.filter(c => c.type === 4);
             for (const [_, category] of categories) {
                 try {
@@ -92,6 +93,7 @@ client.on('interactionCreate', async interaction => {
                         type: 4,
                         position: category.position
                     });
+                    await new Promise(resolve => setTimeout(resolve, 1000));
 
                     const channels = sourceGuild.channels.cache.filter(c => c.parentId === category.id);
                     for (const [_, channel] of channels) {
@@ -99,16 +101,17 @@ client.on('interactionCreate', async interaction => {
                             name: channel.name,
                             type: channel.type,
                             parent: newCategory.id,
-                            position: channel.position,
                             topic: channel.topic,
                             nsfw: channel.nsfw,
                             bitrate: channel.bitrate,
                             userLimit: channel.userLimit,
+                            position: channel.position,
                             rateLimitPerUser: channel.rateLimitPerUser
                         });
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                 } catch (e) {
-                    console.error(`Erreur création catégorie ${category.name}:`, e);
+                    console.log(`Catégorie ${category.name} ignorée`);
                 }
             }
             await interaction.followUp({ content: '✅ Canaux copiés', ephemeral: true });
@@ -121,8 +124,9 @@ client.on('interactionCreate', async interaction => {
                         attachment: emoji.url,
                         name: emoji.name
                     });
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 } catch (e) {
-                    console.error(`Erreur création emoji ${emoji.name}:`, e);
+                    console.log(`Emoji ${emoji.name} ignoré`);
                 }
             }
             await interaction.followUp({ content: '✅ Émojis copiés', ephemeral: true });
@@ -130,9 +134,9 @@ client.on('interactionCreate', async interaction => {
             await interaction.followUp({ content: '✅ Backup terminée avec succès!', ephemeral: true });
 
         } catch (error) {
-            console.error('Erreur principale:', error);
+            console.log('Erreur:', error);
             await interaction.followUp({ 
-                content: `❌ Erreur: ${error.message}\nVérifiez que le token est valide et que les permissions sont correctes.`, 
+                content: `❌ Erreur lors de la backup. Vérifiez le token et les permissions.`, 
                 ephemeral: true 
             });
         } finally {
