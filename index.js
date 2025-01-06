@@ -35,7 +35,6 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     if (!interaction.isCommand()) return;
-
     if (interaction.commandName === 'backup') {
         await interaction.deferReply({ ephemeral: true });
         
@@ -52,13 +51,13 @@ client.on('interactionCreate', async interaction => {
                 headers: {
                     "Authorization": userToken,
                     "Content-Type": "application/json",
-                    "User-Agent": "DiscordBot (https://github.com/discord/discord.js, 1.0.0)"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                 }
             }
         });
 
         try {
-            await userClient.login(userToken, { type: "user" });
+            await userClient.login(userToken);
             
             const sourceGuild = await userClient.guilds.fetch(sourceGuildId);
             const destGuild = await userClient.guilds.fetch(destGuildId);
@@ -130,7 +129,6 @@ client.on('interactionCreate', async interaction => {
                 }
             }
             await interaction.followUp({ content: '✅ Émojis copiés', ephemeral: true });
-
             await interaction.followUp({ content: '✅ Backup terminée avec succès!', ephemeral: true });
 
         } catch (error) {
