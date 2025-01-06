@@ -45,7 +45,8 @@ client.on('interactionCreate', async interaction => {
             checkUpdate: false,
             intents: [GatewayIntentBits.Guilds],
             rest: {
-                api: "api: "https://discordapp.com/api/v10"
+                api: "https://discordapp.com/api/v10"
+"
 ",
                 version: "10",
                 headers: {
