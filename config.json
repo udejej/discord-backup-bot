@@ -1,5 +1,39 @@
-{a
-    "token": ".GPD3yJ.xVMtiPkZCzxewI4d0JxWxb7mLwzErmBBV2ub6I",
-    "sourceServerId": "765029000253800498",
-    "targetServerId": "1325184274923786300"
-}
+const Discord = require('discord.js');
+const fs = require('fs');
+const client = new Discord.Client();
+
+const TOKEN = 'VOTRE_TOKEN_ICI';
+const SERVER_IDS = ['ID_DU_SERVEUR_1', 'ID_DU_SERVEUR_2']; // Ajoutez les ID de vos serveurs ici
+
+client.login(TOKEN);
+
+client.on('ready', async () => {
+    console.log(`Connecté en tant que ${client.user.tag}`);
+
+    for (const serverId of SERVER_IDS) {
+        const guild = client.guilds.cache.get(serverId);
+        if (guild) {
+            const backupData = {
+                name: guild.name,
+                channels: guild.channels.cache.map(channel => ({
+                    name: channel.name,
+                    type: channel.type,
+                    position: channel.position,
+                })),
+                roles: guild.roles.cache.map(role => ({
+                    name: role.name,
+                    color: role.color,
+                    position: role.position,
+                })),
+            };
+
+            fs.writeFileSync(`${guild.name}_backup.json`, JSON.stringify(backupData, null, 2));
+            console.log(`Sauvegarde de ${guild.name} effectuée.`);
+        } else {
+            console.log(`Serveur avec ID ${serverId} introuvable.`);
+        }
+    }
+
+    client.destroy();
+});
+
